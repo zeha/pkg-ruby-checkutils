@@ -63,7 +63,7 @@ class ArgParser
   @@parser = OptionParser.new do |opts|
     opts.banner = 'Usage: check.rb [options]'
     opts.on("-v", "Run verbosely") do |v| @@options[:verbose] = v end
-    opts.on("-p WHAT", "Treat WHAT as a source package name") do |v| @@options[:type] = :package; ; @@options[:what] = v end
+    opts.on("-p WHAT", "Treat WHAT as a source package name") do |v| @@options[:type] = :package; @@options[:what] = v end
     opts.on("-s WHAT", "Treat WHAT as a source directory name (which contains metadata.yml)") do |v| @@options[:type] = :sourcedir; @@options[:what] = v end
     opts.on("-g WHAT", "Treat WHAT as a gem name (has to be in all specs cache)") do |v| @@options[:type] = :gem; @@options[:what] = v end
     opts.on("-r WHAT", "Treat WHAT as a gem name from rubygems.org") do |v| @@options[:type] = :remotegem; @@options[:what] = v end
