@@ -3,6 +3,8 @@ require 'net/http'
 require 'digest'
 require 'fileutils'
 
+MIRROR = 'ftp.at.debian.org'
+
 class CacheBuilder
   def initialize
     @cachedir = './cache/'
@@ -29,6 +31,7 @@ class CacheBuilder
     return if File.exist?(this_cache_file)
     puts "Downloading #{package}..."
     init_workdir
+    File.write("#{@workdir}/#{package}.deb", Net::HTTP.get(MIRROR, "/pool/
     Kernel.system "cd #{@workdir} && dget #{package}"
     package_glob = "#{@workdir}#{package}_*.deb"
     deb = Dir.glob(package_glob).first
@@ -48,29 +51,50 @@ class CacheBuilder
 
   def get_contents
     puts "Downloading Contents-amd64.gz"
-    StringIO.open(Net::HTTP.get('ftp.at.debian.org', '/debian/dists/sid/main/Contents-amd64.gz'))
+    Zlib::GzipReader.new(StringIO.open(Net::HTTP.get(MIRROR, '/debian/dists/sid/main/Contents-amd64.gz')))
   end
 
-  def get_package_filelist(contents)
-    puts "Parsing Contents"
-    re = /rubygems-integration\/.*\/specifications\/.*.gemspec$/
-    reader = Zlib::GzipReader.new(contents)
-    package_file = []
-    reader.each_line do |l|
-      file, packages = l.split(" ")
-      if re.match(file) then
-        packages = packages.split(",").map do |p|
-          package_file << [p.split("/")[1], file]
+  def get_packages
+    ["amd64", "all"].map do |arch|
+      url = "/debian/dists/sid/main/binary-#{arch}/Packages.gz"
+      puts "Downloading #{url}"
+      Zlib::GzipReader.new(StringIO.open(Net::HTTP.get(MIRROR, url)))
+    end
+  end
+
+  def get_package_filelist(contents, packages_archs)
+    re = /Filename: pool/
+    package_deb_index = {}
+    packages_archs.each do |packages_arch|
+      puts "Parsing a packages-arch file"
+      packages_arch.each_line do |l|
+        if re.match(l) then
+          filename = l.split(" ")[1]
+          package_deb_index[filename.split("/")[3]] = filename
         end
       end
     end
+
+    puts "Parsing Contents"
+    re = /rubygems-integration\/.*\/specifications\/.*.gemspec$/
+    package_file = []
+    contents.each_line do |l|
+      file, packages = l.split(" ")
+      if re.match(file) then
+        packages = packages.split(",").map do |p|
+          packagename = p.split("/")[1]
+          package_file << [packagename, file, package_deb_index[packagename]]
+        end
+      end
+    end
+
     package_file
   end
 
   def go!
     init_cachedir
-    get_package_filelist(get_contents()).each do |package, file|
-      get_spec(package, file)
+    get_package_filelist(get_contents(), get_packages()).each do |package, file, poolurl|
+      get_spec(package, file, poolurl)
     end
     if @errors then
       puts
