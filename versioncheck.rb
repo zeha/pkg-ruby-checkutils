@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
 require 'rubygems'
-require 'net/http'
+require 'open-uri'
 require 'json'
 require 'optparse'
 
@@ -51,9 +51,10 @@ end
 
 def get_current_version(name)
   puts "Checking version of #{name} on rubygems.org..."
-  versions = JSON.parse(Net::HTTP.get('rubygems.org', "/api/v1/versions/#{name}.json"))
+  json = URI.parse("https://rubygems.org/api/v1/versions/#{name}.json").read
+  versions = JSON.parse(json)
   return versions[0]["number"].to_s
-rescue nil
+rescue NilClass
   puts "E: Failed checking current version on rubugems.org", $!
   nil
 end
